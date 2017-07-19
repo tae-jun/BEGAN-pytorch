@@ -18,6 +18,9 @@ from torch.autograd import Variable
 from models import GeneratorCNN, DiscriminatorCNN
 from data_loader import get_loader
 
+def l1_loss(a, b):
+    return torch.mean(torch.abs(a - b))
+
 def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -102,15 +105,11 @@ class Trainer(object):
         self.D.apply(weights_init)
 
     def train(self):
-        l1 = nn.L1Loss()
-
         z_D = Variable(torch.FloatTensor(self.batch_size, self.z_num))
         z_G = Variable(torch.FloatTensor(self.batch_size, self.z_num))
         z_fixed = Variable(torch.FloatTensor(self.batch_size, self.z_num).normal_(0, 1), volatile=True)
 
         if self.num_gpu > 0:
-            l1.cuda()
-
             z_D = z_D.cuda()
             z_G = z_G.cuda()
             z_fixed = z_fixed.cuda()
@@ -142,28 +141,28 @@ class Trainer(object):
                 x = next(data_loader)
 
             x = self._get_variable(x)
-            batch_size = x.size(0)
 
-            self.D.zero_grad()
-            self.G.zero_grad()
+            z_D.data.uniform_(-1, 1)
+            z_G.data.uniform_(-1, 1)
 
-            z_D.data.normal_(0, 1)
-            z_G.data.normal_(0, 1)
-
-            #sample_z_D = self.G(z_D)
+            sample_z_D = self.G(z_D)
             sample_z_G = self.G(z_G)
 
             AE_x = self.D(x)
-            AE_G_d = self.D(sample_z_G.detach())
+            AE_G_d = self.D(sample_z_D)
             AE_G_g = self.D(sample_z_G)
 
-            d_loss_real = l1(AE_x, x)
-            d_loss_fake = l1(AE_G_d, sample_z_G.detach())
-
+            d_loss_real = l1_loss(AE_x, x)
+            d_loss_fake = l1_loss(AE_G_d, sample_z_D)
             d_loss = d_loss_real - k_t * d_loss_fake
-            g_loss = l1(sample_z_G, AE_G_g) # this won't still solve the problem
+
+            g_loss = l1_loss(AE_G_g, sample_z_G)
 
             loss = d_loss + g_loss
+
+            g_optim.zero_grad()
+            d_optim.zero_grad()
+
             loss.backward()
 
             g_optim.step()
