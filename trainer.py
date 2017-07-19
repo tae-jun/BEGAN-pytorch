@@ -15,7 +15,7 @@ import torch.nn.parallel
 import torchvision.utils as vutils
 from torch.autograd import Variable
 
-from models import *
+from models import GeneratorCNN, DiscriminatorCNN
 from data_loader import get_loader
 
 def weights_init(m):
@@ -102,7 +102,7 @@ class Trainer(object):
         self.D.apply(weights_init)
 
     def train(self):
-        l1 = L1Loss()
+        l1 = nn.L1Loss()
 
         z_D = Variable(torch.FloatTensor(self.batch_size, self.z_num))
         z_G = Variable(torch.FloatTensor(self.batch_size, self.z_num))
