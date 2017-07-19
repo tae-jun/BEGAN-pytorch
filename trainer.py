@@ -158,15 +158,15 @@ class Trainer(object):
 
             g_loss = l1_loss(AE_G_g, sample_z_G)
 
-            loss = d_loss + g_loss
-
-            g_optim.zero_grad()
-            d_optim.zero_grad()
-
-            loss.backward()
-
-            g_optim.step()
+            self.D.zero_grad()
+            self.G.zero_grad()
+            d_loss.backward()
             d_optim.step()
+
+            self.D.zero_grad()
+            self.G.zero_grad()
+            g_loss.backward()
+            g_optim.step()
 
             g_d_balance = (self.gamma * d_loss_real - d_loss_fake).data[0]
             k_t += self.lambda_k * g_d_balance
